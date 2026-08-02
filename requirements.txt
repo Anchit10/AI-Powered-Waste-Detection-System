@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+ultralytics
+Pillow
+sqlalchemy
+passlib[bcrypt]
+pyjwt
+websockets

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dehradun Waste Watch | AI-Powered Waste Reporting</title>
+    <meta name="description" content="Report and track waste across Dehradun. AI-powered detection with real-time mapping.">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <span class="brand-icon">🍃</span>
+            <div>
+                <h1 class="brand-name">Waste<span class="brand-accent">Watch</span></h1>
+                <span class="brand-city">Dehradun</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <button class="nav-item active" data-view="view-map">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+                <span>Map</span>
+            </button>
+            <button class="nav-item" data-view="view-report">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                <span>Report</span>
+            </button>
+            <button class="nav-item" data-view="view-gallery">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                <span>Gallery</span>
+            </button>
+            <button class="nav-item" data-view="view-stats">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                <span>Stats</span>
+            </button>
+            <button class="nav-item hidden" data-view="view-admin" id="nav-admin">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                <span>Admin</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="stat-chip">
+                <span class="stat-dot"></span>
+                <span id="header-stat">0 reports</span>
+            </div>
+            <!-- Not logged in -->
+            <div id="auth-area">
+                <button class="btn-login" id="btn-auth-toggle">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    Login / Register
+                </button>
+            </div>
+            <!-- Logged in -->
+            <div id="user-menu" class="hidden">
+                <div class="user-info">
+                    <span class="user-badge" id="user-role-badge">citizen</span>
+                    <span id="user-email-display" class="user-name"></span>
+                </div>
+                <button class="btn-text btn-logout" id="btn-logout">Logout</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Mobile top bar -->
+    <header class="mobile-header" id="mobile-header">
+        <button class="hamburger" id="hamburger">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <span class="mobile-title">🍃 WasteWatch</span>
+        <div class="stat-chip stat-chip-sm">
+            <span class="stat-dot"></span>
+            <span id="header-stat-mobile">0</span>
+        </div>
+    </header>
+
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay hidden" id="sidebar-overlay"></div>
+
+    <!-- ═══ MAIN CONTENT ═══ -->
+    <main class="main" id="main-content">
+
+        <!-- MAP VIEW -->
+        <section id="view-map" class="view active">
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="map-overlay-top">
+                    <div class="map-filter-bar glass">
+                        <select id="filter-locality" class="filter-select"><option value="">All Areas</option></select>
+                        <select id="filter-status" class="filter-select">
+                            <option value="">All Status</option>
+                            <option value="Reported">🔴 Reported</option>
+                            <option value="Taken Up">🟠 Taken Up</option>
+                            <option value="Being Solved">🔵 Being Solved</option>
+                            <option value="Solved">🟢 Solved</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="map-overlay-legend glass">
+                    <div class="legend-dot red"></div><span>Reported</span>
+                    <div class="legend-dot orange"></div><span>Taken Up</span>
+                    <div class="legend-dot blue"></div><span>Being Solved</span>
+                    <div class="legend-dot green"></div><span>Solved</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- REPORT VIEW -->
+        <section id="view-report" class="view">
+            <div class="report-flow">
+                <div class="report-step active" id="step-upload">
+                    <div class="step-card glass">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <div><h2>Upload Photo</h2><p class="step-subtitle">Take or select a photo of the waste</p></div>
+                        </div>
+                        <div class="upload-zone" id="upload-zone">
+                            <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
+                            <label for="file-input" class="upload-prompt">
+                                <div class="upload-icon-ring">
+                                    <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="1.5" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                </div>
+                                <span class="upload-text">Tap to capture or choose image</span>
+                                <span class="upload-hint">Supports JPG, PNG — max 10MB</span>
+                            </label>
+                        </div>
+                        <div id="preview-container" class="preview-container hidden">
+                            <img id="preview-img" alt="Waste preview">
+                            <button class="btn-remove-preview" id="btn-clear-preview">✕</button>
+                        </div>
+                        <button class="btn-primary btn-block" id="btn-analyze" disabled>
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                            Analyze with AI
+                        </button>
+                    </div>
+                </div>
+                <div class="report-step" id="step-locate">
+                    <div class="step-card glass">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <div><h2>Results & Location</h2><p class="step-subtitle">Review AI findings & confirm location</p></div>
+                        </div>
+                        <div class="ai-results">
+                            <div class="result-badge-row">
+                                <span class="result-type" id="result-type">—</span>
+                                <span class="result-severity-badge" id="result-severity-badge">—</span>
+                                <span class="result-confidence" id="result-confidence">0%</span>
+                            </div>
+                            <div class="canvas-wrap">
+                                <img id="result-image" alt="Detection result">
+                                <svg id="detection-svg" viewBox="0 0 1 1" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2;"></svg>
+                            </div>
+                            <ul id="detections-list" class="detections-list"></ul>
+                        </div>
+                        <div class="location-section">
+                            <h3>📍 Confirm Location</h3>
+                            <p class="location-hint">GPS auto-detected. Tap map to adjust.</p>
+                            <div class="location-map-wrap"><div id="location-picker-map"></div></div>
+                            <div class="location-fields">
+                                <div class="field-row">
+                                    <div class="field-group"><label>Latitude</label><input type="number" id="input-lat" step="0.0001" value="30.3165"></div>
+                                    <div class="field-group"><label>Longitude</label><input type="number" id="input-lng" step="0.0001" value="78.0322"></div>
+                                </div>
+                                <div class="field-group">
+                                    <label>Area / Locality</label>
+                                    <select id="input-locality"><option value="Other">Select area...</option></select>
+                                </div>
+                                <div id="responsible-authority-info" class="authority-info hidden">
+                                    <div class="auth-row"><span>🏛️ Authority:</span> <strong id="authority-name-display"></strong></div>
+                                    <div class="auth-row"><span>👤 Elected:</span> <strong id="representative-name-display"></strong></div>
+                                </div>
+                                <button class="btn-gps" id="btn-gps-locate">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line></svg>
+                                    Detect My Location (GPS)
+                                </button>
+                            </div>
+                        </div>
+                        <button class="btn-primary btn-block" id="btn-submit-report">Submit Report</button>
+                    </div>
+                </div>
+                <div class="report-step" id="step-success">
+                    <div class="step-card glass success-card">
+                        <div class="success-icon">✅</div>
+                        <h2>Report Submitted!</h2>
+                        <p>Your report has been logged and assigned to the responsible authority.</p>
+                        <div id="success-meta" class="success-meta"></div>
+                        <button class="btn-primary btn-block" id="btn-new-report">Report Another</button>
+                        <button class="btn-outline btn-block" id="btn-go-map">View on Map</button>
+                    </div>
+                </div>
+                <div id="report-loader" class="report-loader hidden">
+                    <div class="loader-content glass"><div class="spinner"></div><p>AI is analyzing...</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- GALLERY VIEW — area-wise image gallery -->
+        <section id="view-gallery" class="view">
+            <div class="gallery-page">
+                <h2 class="page-title">📸 Area Gallery</h2>
+                <p class="page-subtitle">Browse reported waste images by locality</p>
+                <div class="field-group" style="max-width:360px; margin-bottom:1.25rem;">
+                    <label>Select Area</label>
+                    <select id="gallery-area-select" class="filter-select"><option value="">Choose a locality...</option></select>
+                </div>
+                <div id="gallery-grid" class="gallery-grid"></div>
+            </div>
+        </section>
+
+        <!-- STATS VIEW -->
+        <section id="view-stats" class="view">
+            <div class="stats-page">
+                <h2 class="page-title">Dehradun Waste Dashboard</h2>
+                <div class="stats-grid">
+                    <div class="stat-card glass"><div class="stat-label">Total</div><div class="stat-value" id="stat-total">0</div></div>
+                    <div class="stat-card glass"><div class="stat-label">Reported</div><div class="stat-value stat-reported" id="stat-reported">0</div></div>
+                    <div class="stat-card glass"><div class="stat-label">Taken Up</div><div class="stat-value stat-taken-up" id="stat-taken-up">0</div></div>
+                    <div class="stat-card glass"><div class="stat-label">Being Solved</div><div class="stat-value stat-being-solved" id="stat-being-solved">0</div></div>
+                    <div class="stat-card glass"><div class="stat-label">Solved</div><div class="stat-value stat-solved" id="stat-solved">0</div></div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card glass"><h3>Waste Types</h3><canvas id="chart-types"></canvas></div>
+                    <div class="chart-card glass"><h3>Reports by Area</h3><canvas id="chart-areas"></canvas></div>
+                </div>
+                <div class="area-table glass">
+                    <h3>Area-wise Breakdown</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Locality</th>
+                                <th>Authority</th>
+                                <th>Representative</th>
+                                <th>Reports</th>
+                            </tr>
+                        </thead>
+                        <tbody id="area-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ADMIN PANEL -->
+        <section id="view-admin" class="view">
+            <div class="admin-page">
+                <div class="admin-header">
+                    <h2>🛡️ Admin Panel</h2>
+                    <p>Manage reports, authorities, and upload resolution photos.</p>
+                </div>
+                <div class="admin-section glass">
+                    <h3>Government Authorities</h3>
+                    <div id="authorities-list" class="authorities-list"></div>
+                    <details class="add-authority-form">
+                        <summary class="btn-outline">+ Add New Authority</summary>
+                        <form id="form-add-authority" class="auth-form-inline">
+                            <div class="field-row">
+                                <div class="field-group"><label>Name</label><input type="text" id="auth-name" required></div>
+                                <div class="field-group"><label>Email</label><input type="email" id="auth-email" required></div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field-group"><label>Password</label><input type="password" id="auth-password" required></div>
+                                <div class="field-group"><label>Phone</label><input type="tel" id="auth-phone"></div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field-group"><label>Organization</label><input type="text" id="auth-org" required></div>
+                                <div class="field-group"><label>Assigned Area</label><select id="auth-locality"></select></div>
+                            </div>
+                            <button type="submit" class="btn-primary">Create Authority</button>
+                        </form>
+                    </details>
+                </div>
+                <div class="admin-section glass">
+                    <h3>All Reports</h3>
+                    <div class="admin-filters">
+                        <select id="admin-filter-status" class="filter-select">
+                            <option value="">All Status</option>
+                            <option value="Reported">Reported</option>
+                            <option value="Taken Up">Taken Up</option>
+                            <option value="Being Solved">Being Solved</option>
+                            <option value="Solved">Solved</option>
+                        </select>
+                    </div>
+                    <div id="admin-reports-list" class="reports-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AUTH MODAL -->
+        <div id="auth-modal" class="modal hidden">
+            <div class="modal-backdrop"></div>
+            <div class="modal-body glass">
+                <button class="modal-close" id="modal-close">✕</button>
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">Login</button>
+                    <button class="auth-tab" data-tab="register">Register</button>
+                </div>
+                <div id="form-login" class="auth-form active">
+                    <form id="login-form">
+                        <div class="field-group"><label>Email</label><input type="email" id="login-email" required></div>
+                        <div class="field-group"><label>Password</label><input type="password" id="login-password" required></div>
+                        <div id="login-error" class="error-msg hidden"></div>
+                        <button type="submit" class="btn-primary btn-block">Login</button>
+                    </form>
+                    <div class="demo-logins">
+                        <p>Admin: email starting with <code>admin</code></p>
+                    </div>
+                </div>
+                <div id="form-register" class="auth-form">
+                    <form id="register-form">
+                        <div class="field-group"><label>Name</label><input type="text" id="register-name" required></div>
+                        <div class="field-group"><label>Email</label><input type="email" id="register-email" required></div>
+                        <div class="field-group"><label>Password</label><input type="password" id="register-password" required minlength="6"></div>
+                        <p class="hint-text">📌 Email starting with <strong>admin</strong> auto-registers as Admin</p>
+                        <div id="register-error" class="error-msg hidden"></div>
+                        <button type="submit" class="btn-primary btn-block">Register</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- REPORT DETAIL MODAL -->
+        <div id="report-modal" class="modal hidden">
+            <div class="modal-backdrop" id="report-modal-backdrop"></div>
+            <div class="modal-body modal-wide glass">
+                <button class="modal-close" id="report-modal-close">✕</button>
+                <div id="report-detail-content"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
